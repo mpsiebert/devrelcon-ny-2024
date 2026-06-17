@@ -96,3 +96,22 @@ describe('buildSessions', () => {
     expect(() => buildSessions(input)).toThrow(/unresolved speaker/i);
   });
 });
+
+describe('buildSessions reservedSessionIds', () => {
+  const resolveByName = new Map([['Jane Doe', 'jane_doe']]);
+
+  it('skips reserved IDs so archived sessions are never clobbered', () => {
+    const input: SessionsInput = {
+      talks: [
+        talk({ title: 'A' }),
+        talk({ title: 'B', startTime: '12:00' }),
+        talk({ title: 'C', startTime: '13:00' }),
+      ],
+      existingSessionIds: [],
+      resolveByName,
+      reservedSessionIds: new Set(['102', '103']),
+    };
+    const { sessions } = buildSessions(input);
+    expect(sessions.map((s) => s.id)).toEqual(['101', '104', '105']);
+  });
+});

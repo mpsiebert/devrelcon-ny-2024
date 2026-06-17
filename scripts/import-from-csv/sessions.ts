@@ -19,6 +19,12 @@ export interface SessionsInput {
   talks: Talk[];
   existingSessionIds: string[];
   resolveByName: Map<string, string>;
+  /**
+   * IDs that must never be assigned to a new session (e.g. archived
+   * previous-year sessions referenced by speaker history). New numeric IDs
+   * skip these so a re-import can't clobber a preserved old talk.
+   */
+  reservedSessionIds?: Set<string>;
 }
 
 export interface SessionsResult {
@@ -48,6 +54,7 @@ function compareTalks(a: Talk, b: Talk): number {
 
 export function buildSessions(input: SessionsInput): SessionsResult {
   const sorted = [...input.talks].sort(compareTalks);
+  const reserved = input.reservedSessionIds ?? new Set<string>();
   let nextId = nextNumericId(input.existingSessionIds);
 
   const sessions: SessionEntry[] = [];
@@ -62,6 +69,7 @@ export function buildSessions(input: SessionsInput): SessionsResult {
       return id;
     });
 
+    while (reserved.has(String(nextId))) nextId++;
     const id = String(nextId++);
     sessions.push({
       id,

@@ -116,6 +116,27 @@ async function main(): Promise<void> {
     );
   }
 
+  // Sessions referenced by speaker history (previous years) must be preserved
+  // across re-imports — they back the /sessions/<id> links on speaker pages.
+  // We never delete these, and never reuse their IDs for new sessions.
+  const protectedSessionIds = new Set<string>();
+  for (const e of existing) {
+    const history = e.data['history'] as
+      | Record<string, { talks?: Array<{ sessionId?: string }> }>
+      | undefined;
+    if (!history) continue;
+    for (const snap of Object.values(history)) {
+      for (const talk of snap.talks ?? []) {
+        if (talk.sessionId) protectedSessionIds.add(talk.sessionId);
+      }
+    }
+  }
+  if (protectedSessionIds.size > 0) {
+    console.log(
+      `  Protecting ${protectedSessionIds.size} archived session(s) referenced by history`,
+    );
+  }
+
   // 4. Build sessions.
   console.log('Fetching existing sessions...');
   const sessionsSnap = await firestore.collection('sessions').get();
@@ -129,6 +150,7 @@ async function main(): Promise<void> {
     talks,
     existingSessionIds,
     resolveByName: speakerPlan.resolveByName,
+    reservedSessionIds: protectedSessionIds,
   });
   console.log(`  Built ${sessions.length} session docs`);
 
@@ -144,7 +166,10 @@ async function main(): Promise<void> {
   console.log(`  Sessions: ${sessions.length}`);
   console.log(`  Schedule days: ${days.length}`);
   if (replace) {
-    console.log(`  Will delete: ${sessionsSnap.size} existing sessions + existing schedule docs`);
+    const willDelete = sessionsSnap.docs.filter((doc) => !protectedSessionIds.has(doc.id)).length;
+    console.log(
+      `  Will delete: ${willDelete} sessions (keeping ${sessionsSnap.size - willDelete} archived) + existing schedule docs`,
+    );
   }
 
   if (dryRun) {
@@ -153,14 +178,19 @@ async function main(): Promise<void> {
   }
 
   // 7. Replace: wipe sessions + schedule now that everything built cleanly.
+  // Archived sessions referenced by speaker history are preserved.
   if (replace) {
     console.log('\nDeleting existing sessions and schedule...');
     const scheduleSnap = await firestore.collection('schedule').get();
-    const deleteOps = [...sessionsSnap.docs, ...scheduleSnap.docs].map(
+    const sessionDocsToDelete = sessionsSnap.docs.filter((doc) => !protectedSessionIds.has(doc.id));
+    const protectedKept = sessionsSnap.size - sessionDocsToDelete.length;
+    const deleteOps = [...sessionDocsToDelete, ...scheduleSnap.docs].map(
       (doc) => (b: FirebaseFirestore.WriteBatch) => b.delete(doc.ref),
     );
     await commitInBatches(deleteOps);
-    console.log(`  Deleted ${sessionsSnap.size} sessions, ${scheduleSnap.size} schedule docs`);
+    console.log(
+      `  Deleted ${sessionDocsToDelete.length} sessions (kept ${protectedKept} archived), ${scheduleSnap.size} schedule docs`,
+    );
   }
 
   // 8. Write.
@@ -208,7 +238,9 @@ async function main(): Promise<void> {
       firestore.collection('generatedSchedule').get(),
     ]);
     const staleDocs = [
-      ...genSessions.docs.filter((doc) => !newSessionIds.has(doc.id)),
+      ...genSessions.docs.filter(
+        (doc) => !newSessionIds.has(doc.id) && !protectedSessionIds.has(doc.id),
+      ),
       ...genSchedule.docs.filter((doc) => !newDates.has(doc.id)),
     ];
     await commitInBatches(
