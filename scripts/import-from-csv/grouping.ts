@@ -47,7 +47,15 @@ export function groupTalks(rows: CsvRow[]): GroupResult {
           `Description mismatch for talk "${r.title}" on ${r.day} ${r.startTime} — keeping first row's value (row ${existing.originalIndex + 1})`,
         );
       }
-      existing.speakers.push(speaker);
+      // Guard against a speaker accidentally listed twice for the same talk
+      // (duplicate co-presenter rows) — otherwise the session lists them twice.
+      if (existing.speakers.some((s) => s.name === speaker.name)) {
+        warnings.push(
+          `Duplicate speaker "${speaker.name}" for talk "${r.title}" on ${r.day} ${r.startTime} — ignoring repeat (row ${idx + 1})`,
+        );
+      } else {
+        existing.speakers.push(speaker);
+      }
     } else {
       byKey.set(key, {
         title: r.title,

@@ -60,3 +60,28 @@ describe('groupTalks', () => {
     expect(talks.map((t) => t.originalIndex)).toEqual([0, 1]);
   });
 });
+
+describe('groupTalks duplicate co-presenter', () => {
+  const base = {
+    title: 'T',
+    description: 'D',
+    stage: 'Main Stage',
+    day: '2026-07-22',
+    startTime: '10:00',
+    endTime: '10:25',
+    speakerTitle: 'x',
+    speakerHeadshotUrl: '',
+    speakerCompany: 'C',
+  };
+
+  it('ignores a speaker listed twice for the same talk', () => {
+    const { talks, warnings } = groupTalks([
+      { ...base, speakerName: 'Lisa Tagliaferri' },
+      { ...base, speakerName: 'Beatriz' },
+      { ...base, speakerName: 'Lisa Tagliaferri' },
+    ]);
+    expect(talks).toHaveLength(1);
+    expect(talks[0]!.speakers.map((s) => s.name)).toEqual(['Lisa Tagliaferri', 'Beatriz']);
+    expect(warnings.some((w) => /Duplicate speaker "Lisa Tagliaferri"/.test(w))).toBe(true);
+  });
+});
