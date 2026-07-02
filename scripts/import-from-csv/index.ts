@@ -140,6 +140,12 @@ async function main(): Promise<void> {
   // 4. Build sessions.
   console.log('Fetching existing sessions...');
   const sessionsSnap = await firestore.collection('sessions').get();
+  // Non-talk logistics items (breaks, ceremony, reception) are marked
+  // `logistics: true` and are not produced by the CSV — protect them too so a
+  // re-import doesn't wipe them (their schedule placement is managed by hand).
+  sessionsSnap.forEach((doc) => {
+    if (doc.get('logistics') === true) protectedSessionIds.add(doc.id);
+  });
   // In replace mode existing sessions are deleted, so IDs restart; otherwise
   // continue numbering after the highest existing ID.
   const existingSessionIds: string[] = [];
@@ -168,7 +174,7 @@ async function main(): Promise<void> {
   if (replace) {
     const willDelete = sessionsSnap.docs.filter((doc) => !protectedSessionIds.has(doc.id)).length;
     console.log(
-      `  Will delete: ${willDelete} sessions (keeping ${sessionsSnap.size - willDelete} archived) + existing schedule docs`,
+      `  Will delete: ${willDelete} sessions (keeping ${sessionsSnap.size - willDelete} protected) + existing schedule docs`,
     );
   }
 
@@ -189,7 +195,7 @@ async function main(): Promise<void> {
     );
     await commitInBatches(deleteOps);
     console.log(
-      `  Deleted ${sessionDocsToDelete.length} sessions (kept ${protectedKept} archived), ${scheduleSnap.size} schedule docs`,
+      `  Deleted ${sessionDocsToDelete.length} sessions (kept ${protectedKept} protected), ${scheduleSnap.size} schedule docs`,
     );
   }
 
