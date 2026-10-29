@@ -1,5 +1,6 @@
 import { html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { heroSettings } from '../../utils/data';
 import { ThemedElement } from '../themed-element';
 import './hero-block';
@@ -23,6 +24,10 @@ interface Description {
   description: string;
 }
 
+interface DescriptionHtml {
+  descriptionHtml: string;
+}
+
 interface Title {
   title: string;
 }
@@ -41,9 +46,14 @@ export class SimpleHero extends ThemedElement {
   page: SimpleHeroKeys = 'notFound';
 
   private renderDescription() {
-    if (hasDescription(heroSettings[this.page])) {
+    const setting = heroSettings[this.page];
+    if ('descriptionHtml' in setting) {
       return html`<p class="hero-description">
-        ${(heroSettings[this.page] as Description).description}
+        ${unsafeHTML((setting as DescriptionHtml).descriptionHtml)}
+      </p>`;
+    } else if (hasDescription(setting)) {
+      return html`<p class="hero-description">
+        ${(setting as Description).description}
       </p>`;
     } else {
       return nothing;

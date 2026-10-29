@@ -70,9 +70,9 @@
       "fontColor": "#424242"
     },
     "speakers": {
-      "title": "Speakers",
+      "title": "Past Speakers",
       "metaDescription": "Learn how to evolve your team's DevRel strategy and tactics from our exciting lineup of Developer Relations leaders, practitioners, and community members.",
-      "description": "Learn how to evolve your team's DevRel strategy and tactics from our exciting lineup of Developer Relations leaders, practitioners, and community members.",
+      "descriptionHtml": "Interested in joining the list of DevRelCon Speakers? Our 2027 CFP is <a href=\"https://ti.to/mlh/devrelcon-2027\" target=\"_blank\" rel=\"noopener noreferrer\">now open</a>.",
       "background": {
         "color": "#FFF"
       },
